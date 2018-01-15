@@ -1,0 +1,61 @@
+---
+- name: push docker image to AWS ECR Sample
+  hosts: local
+  tasks:
+    - name: make aws directory
+      file:
+        dest: ~/.aws
+        state: directory
+        mode: u=rwx,g=,o=
+
+    - name: copy aws config
+      template:
+        src: aws/config
+        dest: ~/.aws/config
+        mode: u=rw,g=,o=
+
+    - name: copy aws credentials
+      template:
+        src: aws/credentials
+        dest: ~/.aws/credentials
+        mode: u=rw,g=,o=
+
+    - name: install docker-py for build docker
+      pip:
+        name: boto3
+        state: present
+
+    - name: build docker image
+      docker_image: 
+        path: ./
+        name: "{{ image_name }}"
+        tag: "{{ image_version }}"
+
+    - name: docker login (must `--no-include-email`)
+      shell: "$(aws ecr get-login --region {{ region }} --no-include-email)"
+      args:
+        executable: /bin/bash
+
+    - name: install boto3
+      pip:
+        name: boto3
+        state: present
+
+    - name: create repository
+      ecs_ecr:
+        name: "{{ image_name }}"
+        aws_access_key: "{{ key_id }}"
+        aws_secret_key: "{{ access_key }}"
+        region: "{{ region }}"
+      register: ecr_repo
+
+    - name: add tag
+      docker_image:
+        name: "{{ image_name }}:{{ image_version }}"
+        repository: "{{ ecr_repo.repository.repositoryUri }}"
+        tag: "{{ ecr_repo.repository.repositoryUri }}:{{ image_version }}"
+
+    - name: push image to ecr
+      docker_image:
+        name: "{{ ecr_repo.repository.repositoryUri }}:{{ image_version }}"
+        push: yes

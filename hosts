@@ -1,0 +1,9 @@
+[local]
+localhost ansible_connection=local
+
+[local:vars]
+region=ap-northeast-1
+key_id=iam key id
+access_key=iam access key
+image_name=hogehoge/fugafuga
+image_version=latest
